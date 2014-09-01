@@ -71,7 +71,7 @@ namespace LandTileGenerator.Generators
 
         private int getDetailLevel()
         {
-            return 8;
+            return 12;
         }
     }
 }

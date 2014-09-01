@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using LandTileGenerator;
 using Mogre;
 using Mesh = LandTileGenerator.Mesh;
@@ -18,6 +19,7 @@ namespace MOWorldEditor
             public Vector2 TextureCoord { get; set; }
             public Vector3 Normals { get; set; }
         }
+
         public class Face
         {
             public Face(Vertex3D vertex1, Vertex3D vertex2, Vertex3D vertex3)
@@ -43,34 +45,53 @@ namespace MOWorldEditor
             }
         }
 
+        public class TileFaces
+        {
+            public TileFaces(int tileX, int tileY, List<Face> faces)
+            {
+                TileX = tileX;
+                TileY = tileY;
+                Faces = faces;
+            }
+
+            public int TileX { get; private set; }
+            public int TileY { get; private set; }
+            public List<Face> Faces { get; private set; }
+        }
+
         private readonly WorldModel _model;
         public ManualObject Entity { get; private set; }
-        private float TILE_WIDTH = 30f;
-        private float TILE_HEIGHT = 30f;
-        private float TILE_DEPTH = 30f;
+        private static float TILE_WIDTH = 30f;
+        private static float TILE_HEIGHT = 30f;
+        private static float TILE_DEPTH = 30f;
 
         public WorldObject(SceneManager mgr, WorldModel model)
         {
             _model = model;
             Entity = mgr.CreateManualObject("world");
 
-            List<Face> faces = CreateFaces(model);
+            List<TileFaces> tileFaces = CreateFaces(model);
 
             Entity.Begin("surface", RenderOperation.OperationTypes.OT_TRIANGLE_LIST);
-            foreach (var face in faces)
-                DrawFace(face);
+            foreach (var tile in tileFaces.SelectMany(t => t.Faces))
+                DrawFace(tile);
             Entity.End();
-            new TextureMaker().CreateFor("surface", model.Map);
+            new TextureMaker().CreateFor("surface", model.Map, tileFaces);
         }
 
-        private List<Face> CreateFaces(WorldModel model)
+        private List<TileFaces> CreateFaces(WorldModel model)
         {
             IDictionary<Vector3, Vertex3D> vertexDict = new Dictionary<Vector3, Vertex3D>();
-            var faces = new List<Face>();
+            var faces = new List<TileFaces>();
             for (int x = 0; x < model.Map.Width; ++x)
                 for (int y = 0; y < model.Map.Height; ++y)
-                    faces.AddRange(CreateFaces(x, y, model, vertexDict));
+                    faces.Add(CreateTileFaces(x, y, model, vertexDict));
             return faces;
+        }
+
+        private TileFaces CreateTileFaces(int x, int y, WorldModel model, IDictionary<Vector3, Vertex3D> vertexDict)
+        {
+            return new TileFaces(x, y, CreateFaces(x, y, model, vertexDict).ToList());
         }
 
         private IEnumerable<Face> CreateFaces(int x, int y, WorldModel model, IDictionary<Vector3, Vertex3D> vertexDict)
@@ -103,7 +124,7 @@ namespace MOWorldEditor
 
         private Vertex3D GetOrCreateVertex(IDictionary<Vector3, Vertex3D> vertexDict, Vertex vertex, int level, int gx, int gy)
         {
-            var position = new Vector3((gx + vertex.X) * TILE_WIDTH, (gy + vertex.Y) * TILE_HEIGHT, (-level + vertex.Z) * TILE_DEPTH);
+            var position = new Vector3(gx + vertex.X, gy + vertex.Y, -level + vertex.Z);
             Vertex3D v3d;
             if (!vertexDict.TryGetValue(position, out v3d))
             {
@@ -129,7 +150,7 @@ namespace MOWorldEditor
 
         private void DrawVertex(Vertex3D v)
         {
-            Entity.Position(v.Position);
+            Entity.Position(v.Position.x * TILE_WIDTH, v.Position.y * TILE_HEIGHT, v.Position.z * TILE_DEPTH);
             Entity.Normal(v.Normals.NormalisedCopy);
             Entity.TextureCoord(v.TextureCoord);
         }
