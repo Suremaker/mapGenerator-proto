@@ -32,6 +32,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="ImageOps">
+      <HintPath>..\libs\ImageOps.dll</HintPath>
+    </Reference>
     <Reference Include="Mogre, Version=1.7.4.0, Culture=neutral, processorArchitecture=x86">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Mogre1.7.4.1.0.6\lib\Mogre.dll</HintPath>
@@ -39,6 +42,9 @@
     <Reference Include="MogreNewt, Version=2.35.0.0, Culture=neutral, processorArchitecture=x86">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\packages\Mogre1.7.4.1.0.6\lib\MogreNewt.dll</HintPath>
+    </Reference>
+    <Reference Include="SimplexNoise">
+      <HintPath>..\libs\SimplexNoise.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -55,7 +61,8 @@
     <Compile Include="NamedTileGenerator.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TextureMaker.cs" />
+    <Compile Include="Texturing\TextureMaker.cs" />
+    <Compile Include="Texturing\TileTextureMixer.cs" />
     <Compile Include="WorldMap.cs" />
     <Compile Include="WorldModel.cs" />
     <Compile Include="VertextExtensions.cs" />

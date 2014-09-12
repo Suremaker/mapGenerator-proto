@@ -1,24 +1,22 @@
 ﻿using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Drawing2D;
+using System.IO;
 using System.Linq;
-using LandTileGenerator;
+using ImageOps;
+using ImageOps.Sources;
 using Mogre;
-using Image = System.Drawing.Image;
-using PixelFormat = System.Drawing.Imaging.PixelFormat;
 
 namespace MOWorldEditor
 {
     public class TextureMaker
     {
-        private TextureBrush _grassBrush;
-        private TextureBrush _rockBrush;
         private int _MUL = 256;
+        private TileTextureMixer _tileTextureMixer;
 
         public TextureMaker()
         {
-            _grassBrush = new TextureBrush(new Bitmap("Resources\\grass.png"), WrapMode.Tile);
-            _rockBrush = new TextureBrush(new Bitmap("Resources\\rock.png"), WrapMode.Tile);
+            _tileTextureMixer = new TileTextureMixer();
         }
 
         public void CreateFor(string materialName, WorldMap map, List<WorldObject.TileFaces> tileFaces)
@@ -33,21 +31,41 @@ namespace MOWorldEditor
 
         private void WriteMapTexture(string textureName, WorldMap map, List<WorldObject.TileFaces> tileFaces)
         {
-            using (var bmp = new Bitmap(map.Width * _MUL, map.Height * _MUL, PixelFormat.Format32bppArgb))
-            using (var g = Graphics.FromImage(bmp))
+            int txWidth = map.Width * _MUL;
+            int txHeight = map.Height * _MUL;
+            
+            using (var rockSource = _tileTextureMixer.MixTextures(txWidth, txHeight, LoadSources("rock")))
+            using (var grassSource = _tileTextureMixer.MixTextures(txWidth, txHeight, LoadSources("grass")))
             {
+                var finalSource = grassSource;
                 for (int x = 0; x < map.Width; x++)
                     for (int y = 0; y < map.Height; ++y)
-                        RenderTile(g, x, y, tileFaces.First(t => t.TileX == x && t.TileY == y).Faces);
-                bmp.Save(textureName);
+                        finalSource = RenderTile(finalSource,rockSource, tileFaces.First(t => t.TileX == x && t.TileY == y).Faces);
+                Stopwatch sw = new Stopwatch();
+                sw.Start();
+                finalSource.ToBitmap().Save(textureName);
+
+                sw.Stop();
+                Debug.WriteLine(sw.Elapsed);
             }
         }
 
-        private void RenderTile(Graphics g, int x, int y, IEnumerable<WorldObject.Face> faces)
+        private IPixelSource[] LoadSources(string name)
         {
-            g.FillRectangle(_grassBrush, x * _MUL, y * _MUL, _MUL, _MUL);
+            return Directory
+                .EnumerateFiles("Resources", string.Format("{0}*.png", name), SearchOption.TopDirectoryOnly)
+                .Select(fn => new Bitmap(fn).AsPixelSource())
+                .ToArray();
+        }
+
+        private IPixelSource RenderTile(IPixelSource finalSource, IPixelSource rockSource, IEnumerable<WorldObject.Face> faces)
+        {
             foreach (var face in faces.Where(IsSteep))
-                g.FillPolygon(_rockBrush, ToTexturePoints(face));
+            {
+                var polygon = Regions.Polygon(ToTexturePoints(face));
+                finalSource=finalSource.BlendRegion(polygon, rockSource.Crop(polygon.BoundingBox), BlendingMethods.Normal);
+            }
+            return finalSource;
         }
 
         private Point[] ToTexturePoints(WorldObject.Face face)
