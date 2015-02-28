@@ -10,6 +10,8 @@ namespace MOWorldEditor
     {
         public class Vertex3D
         {
+            private readonly List<Face> _faces = new List<Face>();
+
             public Vertex3D(Vector3 position)
             {
                 Position = position;
@@ -17,7 +19,13 @@ namespace MOWorldEditor
 
             public Vector3 Position { get; private set; }
             public Vector2 TextureCoord { get; set; }
-            public Vector3 Normals { get; set; }
+            public Vector3 Normals { get; private set; }
+            public IEnumerable<Face> Faces { get { return _faces; } }
+            public void AddFace(Face face)
+            {
+                Normals += face.Normals;
+                _faces.Add(face);
+            }
         }
 
         public class Face
@@ -27,21 +35,31 @@ namespace MOWorldEditor
                 Vertex3 = vertex3;
                 Vertex2 = vertex2;
                 Vertex1 = vertex1;
-                CalculateNormals();
+                Normals = CalculateNormals();
+                SteepLevel = CalculateSteepLevel();
+                Vertex1.AddFace(this);
+                Vertex2.AddFace(this);
+                Vertex3.AddFace(this);
             }
 
+            private double CalculateSteepLevel()
+            {
+                var minZ = System.Math.Min(Vertex1.Position.z, System.Math.Min(Vertex2.Position.z, Vertex3.Position.z));
+                var maxZ = System.Math.Max(Vertex1.Position.z, System.Math.Max(Vertex2.Position.z, Vertex3.Position.z));
+                return maxZ - minZ;
+            }
+
+            public Vector3 Normals { get; private set; }
             public Vertex3D Vertex1 { get; private set; }
             public Vertex3D Vertex2 { get; private set; }
             public Vertex3D Vertex3 { get; private set; }
+            public double SteepLevel { get; private set; }
 
-            private void CalculateNormals()
+            private Vector3 CalculateNormals()
             {
                 var dir1 = Vertex3.Position - Vertex1.Position;
                 var dir2 = Vertex1.Position - Vertex2.Position;
-                var normals = dir1.CrossProduct(dir2).NormalisedCopy;
-                Vertex1.Normals += normals;
-                Vertex2.Normals += normals;
-                Vertex3.Normals += normals;
+                return dir1.CrossProduct(dir2).NormalisedCopy;
             }
         }
 
